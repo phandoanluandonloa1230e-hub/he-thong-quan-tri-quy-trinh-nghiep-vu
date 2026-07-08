@@ -3,7 +3,6 @@
 ## Thành viên
 - Nguyễn Thị Xuân Ngọc
 - Nguyễn Ngọc Quang
-- Võ Trường Phúc
 - Phạm Đức Hải
 - Phan Doãn Luân
 
