@@ -4,6 +4,7 @@
 - Nguyễn Thị Xuân Ngọc
 - Nguyễn Ngọc Quang
 - Phạm Đức Hải
+- Võ Trường Phúc
 - Phan Doãn Luân
 
 ## Cấu trúc
