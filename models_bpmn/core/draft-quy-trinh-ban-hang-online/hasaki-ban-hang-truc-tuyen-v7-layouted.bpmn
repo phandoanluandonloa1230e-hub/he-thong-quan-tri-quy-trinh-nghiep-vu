@@ -1,0 +1,752 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_HasakiOnline_v7" targetNamespace="http://hasaki.vn/bpmn/fbpm">
+  <bpmn:collaboration id="Collaboration_HasakiOnline_v7" name="Bán hàng trực tuyến Hasaki (v7)">
+    <bpmn:participant id="Pool_Customer" name="Khách hàng" processRef="Process_Customer" />
+    <bpmn:participant id="Pool_Hasaki" name="Hasaki" processRef="Process_Hasaki" />
+    <bpmn:messageFlow id="Msg_Order" name="Yêu cầu đặt hàng" sourceRef="Task_PlaceOrder" targetRef="Start_Hasaki" />
+    <bpmn:messageFlow id="Msg_InStock" name="Còn hàng — tiếp tục" sourceRef="Gw_Stock" targetRef="Catch_InStock" />
+    <bpmn:messageFlow id="Msg_OOS" name="Thông báo hết hàng" sourceRef="Task_NotifyOOS" targetRef="Catch_OOS" />
+    <bpmn:messageFlow id="Msg_PayChoice" name="Lựa chọn thanh toán" sourceRef="Task_ChoosePay" targetRef="Catch_PayChoice" />
+    <bpmn:messageFlow id="Msg_Confirmed" name="Xác nhận đơn hàng" sourceRef="Task_ConfirmOrder" targetRef="Catch_Confirmed" />
+    <bpmn:messageFlow id="Msg_PayFail" name="Thanh toán thất bại / hủy" sourceRef="End_Cancel" targetRef="Catch_Cancel" />
+    <bpmn:messageFlow id="Msg_Delivered" name="Giao hàng" sourceRef="Task_Deliver" targetRef="Catch_Receive" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Customer" name="Mua hàng online" isExecutable="false">
+    <bpmn:startEvent id="Start_Customer" name="Bắt đầu mua sắm">
+      <bpmn:outgoing>Flow_C1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_PlaceOrder" name="Chọn sản phẩm và gửi yêu cầu đặt hàng">
+      <bpmn:incoming>Flow_C1</bpmn:incoming>
+      <bpmn:outgoing>Flow_C2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:eventBasedGateway id="Gw_WaitStock" name="Chờ kết quả tồn kho">
+      <bpmn:incoming>Flow_C2</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_WaitOk</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C_WaitOOS</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="Catch_InStock" name="Nhận thông báo còn hàng">
+      <bpmn:incoming>Flow_C_WaitOk</bpmn:incoming>
+      <bpmn:outgoing>Flow_C3</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_InStock" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Catch_OOS" name="Nhận thông báo hết hàng">
+      <bpmn:incoming>Flow_C_WaitOOS</bpmn:incoming>
+      <bpmn:outgoing>Flow_C4</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_OOS" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_HandleOOS" name="Chọn sản phẩm khác hoặc dừng">
+      <bpmn:incoming>Flow_C4</bpmn:incoming>
+      <bpmn:outgoing>Flow_C5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_CustOOS" name="Kết thúc do hết hàng">
+      <bpmn:incoming>Flow_C5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_ChoosePay" name="Chọn phương thức thanh toán">
+      <bpmn:incoming>Flow_C3</bpmn:incoming>
+      <bpmn:outgoing>Flow_C6</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_DoPay" name="Thanh toán online hoặc xác nhận COD">
+      <bpmn:incoming>Flow_C6</bpmn:incoming>
+      <bpmn:outgoing>Flow_C7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:eventBasedGateway id="Gw_WaitConfirm" name="Chờ xác nhận hoặc hủy">
+      <bpmn:incoming>Flow_C7</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_WaitConf</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C_WaitCancel</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:intermediateCatchEvent id="Catch_Confirmed" name="Nhận xác nhận đơn hàng">
+      <bpmn:incoming>Flow_C_WaitConf</bpmn:incoming>
+      <bpmn:outgoing>Flow_C8</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Confirmed" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Catch_Cancel" name="Nhận thông báo hủy đơn">
+      <bpmn:incoming>Flow_C_WaitCancel</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_ToCancel</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Cancel" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="Catch_Receive" name="Chờ nhận hàng">
+      <bpmn:incoming>Flow_C8</bpmn:incoming>
+      <bpmn:outgoing>Flow_C9</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Receive" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:task id="Task_Receive" name="Nhận hàng">
+      <bpmn:incoming>Flow_C9</bpmn:incoming>
+      <bpmn:outgoing>Flow_C10</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gw_Return" name="Yêu cầu đổi hoặc trả hàng?" default="Flow_Cust_NoReturn">
+      <bpmn:incoming>Flow_C10</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cust_WantReturn</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cust_NoReturn</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_CustSuccess" name="Hoàn thành">
+      <bpmn:incoming>Flow_Cust_NoReturn</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_CustCancel" name="Hủy đơn hàng">
+      <bpmn:incoming>Flow_C_ToCancel</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_CustReturn" name="Chuyển quy trình đổi trả">
+      <bpmn:incoming>Flow_Cust_WantReturn</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_C1" sourceRef="Start_Customer" targetRef="Task_PlaceOrder" />
+    <bpmn:sequenceFlow id="Flow_C2" sourceRef="Task_PlaceOrder" targetRef="Gw_WaitStock" />
+    <bpmn:sequenceFlow id="Flow_C_WaitOk" sourceRef="Gw_WaitStock" targetRef="Catch_InStock" />
+    <bpmn:sequenceFlow id="Flow_C_WaitOOS" sourceRef="Gw_WaitStock" targetRef="Catch_OOS" />
+    <bpmn:sequenceFlow id="Flow_C3" sourceRef="Catch_InStock" targetRef="Task_ChoosePay" />
+    <bpmn:sequenceFlow id="Flow_C4" sourceRef="Catch_OOS" targetRef="Task_HandleOOS" />
+    <bpmn:sequenceFlow id="Flow_C5" sourceRef="Task_HandleOOS" targetRef="End_CustOOS" />
+    <bpmn:sequenceFlow id="Flow_C6" sourceRef="Task_ChoosePay" targetRef="Task_DoPay" />
+    <bpmn:sequenceFlow id="Flow_C7" sourceRef="Task_DoPay" targetRef="Gw_WaitConfirm" />
+    <bpmn:sequenceFlow id="Flow_C_WaitConf" sourceRef="Gw_WaitConfirm" targetRef="Catch_Confirmed" />
+    <bpmn:sequenceFlow id="Flow_C_WaitCancel" sourceRef="Gw_WaitConfirm" targetRef="Catch_Cancel" />
+    <bpmn:sequenceFlow id="Flow_C_ToCancel" sourceRef="Catch_Cancel" targetRef="End_CustCancel" />
+    <bpmn:sequenceFlow id="Flow_C8" sourceRef="Catch_Confirmed" targetRef="Catch_Receive" />
+    <bpmn:sequenceFlow id="Flow_C9" sourceRef="Catch_Receive" targetRef="Task_Receive" />
+    <bpmn:sequenceFlow id="Flow_C10" sourceRef="Task_Receive" targetRef="Gw_Return" />
+    <bpmn:sequenceFlow id="Flow_Cust_WantReturn" name="Có" sourceRef="Gw_Return" targetRef="End_CustReturn">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${requestReturn == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Cust_NoReturn" name="Không" sourceRef="Gw_Return" targetRef="End_CustSuccess" />
+  </bpmn:process>
+  <bpmn:process id="Process_Hasaki" name="Xử lý đơn hàng online" isExecutable="false">
+    <bpmn:startEvent id="Start_Hasaki" name="Tiếp nhận yêu cầu đặt hàng">
+      <bpmn:outgoing>Flow_H1</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Start" />
+    </bpmn:startEvent>
+    <bpmn:task id="Task_CheckStock" name="Kiểm tra tồn kho">
+      <bpmn:incoming>Flow_H1</bpmn:incoming>
+      <bpmn:outgoing>Flow_H2</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gw_Stock" name="Sản phẩm còn hàng?" default="Flow_H_OOS">
+      <bpmn:incoming>Flow_H2</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_InStock</bpmn:outgoing>
+      <bpmn:outgoing>Flow_H_OOS</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_NotifyOOS" name="Thông báo hết hàng">
+      <bpmn:incoming>Flow_H_OOS</bpmn:incoming>
+      <bpmn:outgoing>Flow_H3</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="End_HasakiOOS" name="Hủy do hết hàng">
+      <bpmn:incoming>Flow_H3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateCatchEvent id="Catch_PayChoice" name="Nhận lựa chọn thanh toán">
+      <bpmn:incoming>Flow_H_InStock</bpmn:incoming>
+      <bpmn:outgoing>Flow_H4</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_PayChoice" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gw_PayType" name="Thanh toán trực tuyến?" default="Flow_H_COD">
+      <bpmn:incoming>Flow_H4</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_Online</bpmn:outgoing>
+      <bpmn:outgoing>Flow_H_COD</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_ProcessPay" name="Xử lý thanh toán">
+      <bpmn:incoming>Flow_H_Online</bpmn:incoming>
+      <bpmn:outgoing>Flow_H5</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Catch_PayResult" name="Nhận kết quả thanh toán">
+      <bpmn:incoming>Flow_H5</bpmn:incoming>
+      <bpmn:outgoing>Flow_H6</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Pay" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gw_Payment" name="Thanh toán thành công?" default="Flow_H_PayOk">
+      <bpmn:incoming>Flow_H6</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_PayFail</bpmn:outgoing>
+      <bpmn:outgoing>Flow_H_PayOk</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gw_JoinCreate" name="Vào xác nhận đơn">
+      <bpmn:incoming>Flow_H_COD</bpmn:incoming>
+      <bpmn:incoming>Flow_H_PayOk</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_ToCreate</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_CreateOrder" name="Xác nhận đơn hàng">
+      <bpmn:incoming>Flow_H_ToCreate</bpmn:incoming>
+      <bpmn:outgoing>Flow_H7</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:parallelGateway id="And_Fork" name="Song song: chuẩn bị hàng và cập nhật đơn">
+      <bpmn:incoming>Flow_H7</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_AndPrep</bpmn:outgoing>
+      <bpmn:outgoing>Flow_H_AndConf</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:task id="Task_Prepare" name="Chuẩn bị hàng hóa">
+      <bpmn:incoming>Flow_H_AndPrep</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_PrepDone</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ConfirmOrder" name="Cập nhật và xác nhận đơn hàng">
+      <bpmn:incoming>Flow_H_AndConf</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_ConfDone</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:parallelGateway id="And_Join" name="Đồng bộ hai nhánh">
+      <bpmn:incoming>Flow_H_PrepDone</bpmn:incoming>
+      <bpmn:incoming>Flow_H_ConfDone</bpmn:incoming>
+      <bpmn:outgoing>Flow_H8</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:task id="Task_Deliver" name="Giao hàng cho khách">
+      <bpmn:incoming>Flow_H8</bpmn:incoming>
+      <bpmn:outgoing>Flow_H9</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateCatchEvent id="Catch_Delivery" name="Nhận kết quả giao hàng">
+      <bpmn:incoming>Flow_H9</bpmn:incoming>
+      <bpmn:outgoing>Flow_H10</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_Del" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gw_Delivery" name="Giao hàng thành công?" default="Flow_H_DelOk">
+      <bpmn:incoming>Flow_H10</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_DelOk</bpmn:outgoing>
+      <bpmn:outgoing>Flow_H_DelFail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_HandleDelFail" name="Xử lý giao lại hoặc hủy đơn">
+      <bpmn:incoming>Flow_H_DelFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_H11</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gw_JoinCancel" name="Vào hủy đơn">
+      <bpmn:incoming>Flow_H_PayFail</bpmn:incoming>
+      <bpmn:incoming>Flow_H11</bpmn:incoming>
+      <bpmn:outgoing>Flow_H_ToCancel</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Success" name="Hoàn thành">
+      <bpmn:incoming>Flow_H_DelOk</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Cancel" name="Hủy đơn hàng">
+      <bpmn:incoming>Flow_H_ToCancel</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_H1" sourceRef="Start_Hasaki" targetRef="Task_CheckStock" />
+    <bpmn:sequenceFlow id="Flow_H2" sourceRef="Task_CheckStock" targetRef="Gw_Stock" />
+    <bpmn:sequenceFlow id="Flow_H_InStock" name="Có" sourceRef="Gw_Stock" targetRef="Catch_PayChoice">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${inStock == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_H_OOS" name="Không" sourceRef="Gw_Stock" targetRef="Task_NotifyOOS" />
+    <bpmn:sequenceFlow id="Flow_H3" sourceRef="Task_NotifyOOS" targetRef="End_HasakiOOS" />
+    <bpmn:sequenceFlow id="Flow_H4" sourceRef="Catch_PayChoice" targetRef="Gw_PayType" />
+    <bpmn:sequenceFlow id="Flow_H_Online" name="Có" sourceRef="Gw_PayType" targetRef="Task_ProcessPay">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentMethod == "ONLINE"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_H_COD" name="Không (COD)" sourceRef="Gw_PayType" targetRef="Gw_JoinCreate" />
+    <bpmn:sequenceFlow id="Flow_H5" sourceRef="Task_ProcessPay" targetRef="Catch_PayResult" />
+    <bpmn:sequenceFlow id="Flow_H6" sourceRef="Catch_PayResult" targetRef="Gw_Payment" />
+    <bpmn:sequenceFlow id="Flow_H_PayFail" name="Không" sourceRef="Gw_Payment" targetRef="Gw_JoinCancel">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentSuccessful == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_H_PayOk" name="Có" sourceRef="Gw_Payment" targetRef="Gw_JoinCreate" />
+    <bpmn:sequenceFlow id="Flow_H_ToCreate" sourceRef="Gw_JoinCreate" targetRef="Task_CreateOrder" />
+    <bpmn:sequenceFlow id="Flow_H7" sourceRef="Task_CreateOrder" targetRef="And_Fork" />
+    <bpmn:sequenceFlow id="Flow_H_AndPrep" sourceRef="And_Fork" targetRef="Task_Prepare" />
+    <bpmn:sequenceFlow id="Flow_H_AndConf" sourceRef="And_Fork" targetRef="Task_ConfirmOrder" />
+    <bpmn:sequenceFlow id="Flow_H_PrepDone" sourceRef="Task_Prepare" targetRef="And_Join" />
+    <bpmn:sequenceFlow id="Flow_H_ConfDone" sourceRef="Task_ConfirmOrder" targetRef="And_Join" />
+    <bpmn:sequenceFlow id="Flow_H8" sourceRef="And_Join" targetRef="Task_Deliver" />
+    <bpmn:sequenceFlow id="Flow_H9" sourceRef="Task_Deliver" targetRef="Catch_Delivery" />
+    <bpmn:sequenceFlow id="Flow_H10" sourceRef="Catch_Delivery" targetRef="Gw_Delivery" />
+    <bpmn:sequenceFlow id="Flow_H_DelOk" name="Có" sourceRef="Gw_Delivery" targetRef="End_Success" />
+    <bpmn:sequenceFlow id="Flow_H_DelFail" name="Không" sourceRef="Gw_Delivery" targetRef="Task_HandleDelFail">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${deliverySuccessful == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_H11" sourceRef="Task_HandleDelFail" targetRef="Gw_JoinCancel" />
+    <bpmn:sequenceFlow id="Flow_H_ToCancel" sourceRef="Gw_JoinCancel" targetRef="End_Cancel" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Collaboration_HasakiOnline_v7">
+    <bpmndi:BPMNPlane id="BPMNPlane_Collaboration_HasakiOnline_v7" bpmnElement="Collaboration_HasakiOnline_v7">
+      <bpmndi:BPMNShape id="BPMNShape_Pool_Customer" bpmnElement="Pool_Customer" isHorizontal="true">
+        <dc:Bounds x="112" y="80" width="1940" height="320" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Pool_Hasaki" bpmnElement="Pool_Hasaki" isHorizontal="true">
+        <dc:Bounds x="80" y="480" width="3154" height="640" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_Msg_Order" bpmnElement="Msg_Order">
+        <di:waypoint x="368" y="200" />
+        <di:waypoint x="368" y="440" />
+        <di:waypoint x="168" y="440" />
+        <di:waypoint x="168" y="542" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="230" y="407" width="77" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Msg_InStock" bpmnElement="Msg_InStock">
+        <di:waypoint x="511" y="535" />
+        <di:waypoint x="511" y="440" />
+        <di:waypoint x="648" y="440" />
+        <di:waypoint x="648" y="178" />
+        <di:waypoint x="648" y="160" />
+        <di:waypoint x="668" y="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="573" y="275" width="70" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Msg_OOS" bpmnElement="Msg_OOS">
+        <di:waypoint x="686" y="520" />
+        <di:waypoint x="686" y="338" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="691" y="355" width="66" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Msg_PayChoice" bpmnElement="Msg_PayChoice">
+        <di:waypoint x="824" y="200" />
+        <di:waypoint x="824" y="220" />
+        <di:waypoint x="784" y="220" />
+        <di:waypoint x="784" y="440" />
+        <di:waypoint x="756" y="440" />
+        <di:waypoint x="756" y="702" />
+        <di:waypoint x="724" y="702" />
+        <di:waypoint x="724" y="720" />
+        <di:waypoint x="704" y="720" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="761" y="517" width="71" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Msg_Confirmed" bpmnElement="Msg_Confirmed">
+        <di:waypoint x="1992" y="1000" />
+        <di:waypoint x="1992" y="980" />
+        <di:waypoint x="1952" y="980" />
+        <di:waypoint x="1952" y="440" />
+        <di:waypoint x="1334" y="440" />
+        <di:waypoint x="1334" y="178" />
+        <di:waypoint x="1334" y="160" />
+        <di:waypoint x="1354" y="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1311" y="445" width="84" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Msg_PayFail" bpmnElement="Msg_PayFail">
+        <di:waypoint x="3176" y="862" />
+        <di:waypoint x="3176" y="440" />
+        <di:waypoint x="1372" y="440" />
+        <di:waypoint x="1372" y="338" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2738" y="393" width="73" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Msg_Delivered" bpmnElement="Msg_Delivered">
+        <di:waypoint x="2372" y="680" />
+        <di:waypoint x="2372" y="440" />
+        <di:waypoint x="1508" y="440" />
+        <di:waypoint x="1508" y="380" />
+        <di:waypoint x="1470" y="380" />
+        <di:waypoint x="1470" y="178" />
+        <di:waypoint x="1470" y="160" />
+        <di:waypoint x="1490" y="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1513" y="403" width="66" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="BPMNShape_Start_Customer" bpmnElement="Start_Customer">
+        <dc:Bounds x="182" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="160" y="183" width="80" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_PlaceOrder" bpmnElement="Task_PlaceOrder">
+        <dc:Bounds x="318" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_WaitStock" bpmnElement="Gw_WaitStock" isMarkerVisible="true">
+        <dc:Bounds x="518" y="135" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="505" y="102" width="77" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Catch_InStock" bpmnElement="Catch_InStock">
+        <dc:Bounds x="668" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="645" y="109" width="82" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Catch_OOS" bpmnElement="Catch_OOS">
+        <dc:Bounds x="668" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="545" y="343" width="82" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_HandleOOS" bpmnElement="Task_HandleOOS">
+        <dc:Bounds x="804" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_End_CustOOS" bpmnElement="End_CustOOS">
+        <dc:Bounds x="1036" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1016" y="343" width="77" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_ChoosePay" bpmnElement="Task_ChoosePay">
+        <dc:Bounds x="804" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_DoPay" bpmnElement="Task_DoPay">
+        <dc:Bounds x="1004" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_WaitConfirm" bpmnElement="Gw_WaitConfirm" isMarkerVisible="true">
+        <dc:Bounds x="1204" y="135" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1187" y="102" width="84" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Catch_Confirmed" bpmnElement="Catch_Confirmed">
+        <dc:Bounds x="1354" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1328" y="109" width="89" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Catch_Cancel" bpmnElement="Catch_Cancel">
+        <dc:Bounds x="1354" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1235" y="343" width="75" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Catch_Receive" bpmnElement="Catch_Receive">
+        <dc:Bounds x="1490" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1479" y="183" width="59" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_Receive" bpmnElement="Task_Receive">
+        <dc:Bounds x="1626" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_Return" bpmnElement="Gw_Return" isMarkerVisible="true">
+        <dc:Bounds x="1826" y="135" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1813" y="88" width="77" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_End_CustSuccess" bpmnElement="End_CustSuccess">
+        <dc:Bounds x="1976" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1958" y="183" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_End_CustCancel" bpmnElement="End_CustCancel">
+        <dc:Bounds x="1490" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1531" y="313" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_End_CustReturn" bpmnElement="End_CustReturn">
+        <dc:Bounds x="1976" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1950" y="343" width="89" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C1" bpmnElement="Flow_C1">
+        <di:waypoint x="218" y="160" />
+        <di:waypoint x="318" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C2" bpmnElement="Flow_C2">
+        <di:waypoint x="418" y="160" />
+        <di:waypoint x="518" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C_WaitOk" bpmnElement="Flow_C_WaitOk">
+        <di:waypoint x="568" y="160" />
+        <di:waypoint x="668" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C3" bpmnElement="Flow_C3">
+        <di:waypoint x="704" y="160" />
+        <di:waypoint x="804" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C6" bpmnElement="Flow_C6">
+        <di:waypoint x="904" y="160" />
+        <di:waypoint x="1004" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C7" bpmnElement="Flow_C7">
+        <di:waypoint x="1104" y="160" />
+        <di:waypoint x="1204" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C_WaitConf" bpmnElement="Flow_C_WaitConf">
+        <di:waypoint x="1254" y="160" />
+        <di:waypoint x="1354" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C8" bpmnElement="Flow_C8">
+        <di:waypoint x="1390" y="160" />
+        <di:waypoint x="1490" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C9" bpmnElement="Flow_C9">
+        <di:waypoint x="1526" y="160" />
+        <di:waypoint x="1626" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C10" bpmnElement="Flow_C10">
+        <di:waypoint x="1726" y="160" />
+        <di:waypoint x="1826" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_Cust_NoReturn" bpmnElement="Flow_Cust_NoReturn">
+        <di:waypoint x="1876" y="160" />
+        <di:waypoint x="1976" y="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1906" y="138" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C_WaitOOS" bpmnElement="Flow_C_WaitOOS">
+        <di:waypoint x="543" y="185" />
+        <di:waypoint x="543" y="320" />
+        <di:waypoint x="668" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C_WaitCancel" bpmnElement="Flow_C_WaitCancel">
+        <di:waypoint x="1229" y="185" />
+        <di:waypoint x="1229" y="320" />
+        <di:waypoint x="1354" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_Cust_WantReturn" bpmnElement="Flow_Cust_WantReturn">
+        <di:waypoint x="1851" y="185" />
+        <di:waypoint x="1851" y="320" />
+        <di:waypoint x="1976" y="320" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1856" y="246" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C4" bpmnElement="Flow_C4">
+        <di:waypoint x="704" y="320" />
+        <di:waypoint x="804" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C5" bpmnElement="Flow_C5">
+        <di:waypoint x="904" y="320" />
+        <di:waypoint x="1036" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_C_ToCancel" bpmnElement="Flow_C_ToCancel">
+        <di:waypoint x="1390" y="320" />
+        <di:waypoint x="1490" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="BPMNShape_Start_Hasaki" bpmnElement="Start_Hasaki">
+        <dc:Bounds x="150" y="542" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="583" width="75" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_CheckStock" bpmnElement="Task_CheckStock">
+        <dc:Bounds x="286" y="520" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_Stock" bpmnElement="Gw_Stock" isMarkerVisible="true">
+        <dc:Bounds x="486" y="535" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="408" y="590" width="87" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_NotifyOOS" bpmnElement="Task_NotifyOOS">
+        <dc:Bounds x="636" y="520" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_End_HasakiOOS" bpmnElement="End_HasakiOOS">
+        <dc:Bounds x="843" y="542" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="826" y="583" width="70" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Catch_PayChoice" bpmnElement="Catch_PayChoice">
+        <dc:Bounds x="668" y="702" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="651" y="743" width="71" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_PayType" bpmnElement="Gw_PayType" isMarkerVisible="true">
+        <dc:Bounds x="836" y="695" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="822" y="662" width="78" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_ProcessPay" bpmnElement="Task_ProcessPay">
+        <dc:Bounds x="986" y="1000" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Catch_PayResult" bpmnElement="Catch_PayResult">
+        <dc:Bounds x="1186" y="1022" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1162" y="1063" width="84" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_Payment" bpmnElement="Gw_Payment" isMarkerVisible="true">
+        <dc:Bounds x="1322" y="1015" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1308" y="1070" width="78" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_JoinCreate" bpmnElement="Gw_JoinCreate" isMarkerVisible="true">
+        <dc:Bounds x="1472" y="695" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1455" y="750" width="84" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_CreateOrder" bpmnElement="Task_CreateOrder">
+        <dc:Bounds x="1622" y="680" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_And_Fork" bpmnElement="And_Fork" isMarkerVisible="true">
+        <dc:Bounds x="1822" y="695" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1803" y="634" width="89" height="56" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_Prepare" bpmnElement="Task_Prepare">
+        <dc:Bounds x="1972" y="680" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_ConfirmOrder" bpmnElement="Task_ConfirmOrder">
+        <dc:Bounds x="1972" y="1000" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_And_Join" bpmnElement="And_Join" isMarkerVisible="true">
+        <dc:Bounds x="2172" y="695" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2160" y="662" width="75" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_Deliver" bpmnElement="Task_Deliver">
+        <dc:Bounds x="2322" y="680" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Catch_Delivery" bpmnElement="Catch_Delivery">
+        <dc:Bounds x="2522" y="702" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2498" y="743" width="84" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_Delivery" bpmnElement="Gw_Delivery" isMarkerVisible="true">
+        <dc:Bounds x="2658" y="695" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2644" y="662" width="78" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Task_HandleDelFail" bpmnElement="Task_HandleDelFail">
+        <dc:Bounds x="2808" y="840" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_Gw_JoinCancel" bpmnElement="Gw_JoinCancel" isMarkerVisible="true">
+        <dc:Bounds x="3008" y="855" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2995" y="836" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_End_Success" bpmnElement="End_Success">
+        <dc:Bounds x="2840" y="702" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2822" y="743" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_End_Cancel" bpmnElement="End_Cancel">
+        <dc:Bounds x="3158" y="862" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3134" y="903" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H1" bpmnElement="Flow_H1">
+        <di:waypoint x="186" y="560" />
+        <di:waypoint x="286" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H2" bpmnElement="Flow_H2">
+        <di:waypoint x="386" y="560" />
+        <di:waypoint x="486" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_OOS" bpmnElement="Flow_H_OOS">
+        <di:waypoint x="536" y="560" />
+        <di:waypoint x="636" y="560" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="566" y="538" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H3" bpmnElement="Flow_H3">
+        <di:waypoint x="736" y="560" />
+        <di:waypoint x="843" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_COD" bpmnElement="Flow_H_COD">
+        <di:waypoint x="886" y="720" />
+        <di:waypoint x="1472" y="720" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1074" y="698" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_PayOk" bpmnElement="Flow_H_PayOk">
+        <di:waypoint x="1347" y="1015" />
+        <di:waypoint x="1347" y="720" />
+        <di:waypoint x="1472" y="720" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1352" y="861" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_ToCreate" bpmnElement="Flow_H_ToCreate">
+        <di:waypoint x="1522" y="720" />
+        <di:waypoint x="1622" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H7" bpmnElement="Flow_H7">
+        <di:waypoint x="1722" y="720" />
+        <di:waypoint x="1822" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_AndPrep" bpmnElement="Flow_H_AndPrep">
+        <di:waypoint x="1872" y="720" />
+        <di:waypoint x="1972" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_PrepDone" bpmnElement="Flow_H_PrepDone">
+        <di:waypoint x="2072" y="720" />
+        <di:waypoint x="2172" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H8" bpmnElement="Flow_H8">
+        <di:waypoint x="2222" y="720" />
+        <di:waypoint x="2322" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H9" bpmnElement="Flow_H9">
+        <di:waypoint x="2422" y="720" />
+        <di:waypoint x="2522" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H10" bpmnElement="Flow_H10">
+        <di:waypoint x="2558" y="720" />
+        <di:waypoint x="2658" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_DelOk" bpmnElement="Flow_H_DelOk">
+        <di:waypoint x="2708" y="720" />
+        <di:waypoint x="2840" y="720" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2764" y="698" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_InStock" bpmnElement="Flow_H_InStock">
+        <di:waypoint x="511" y="585" />
+        <di:waypoint x="511" y="720" />
+        <di:waypoint x="668" y="720" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="516" y="646" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_Online" bpmnElement="Flow_H_Online">
+        <di:waypoint x="861" y="745" />
+        <di:waypoint x="861" y="1040" />
+        <di:waypoint x="986" y="1040" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="866" y="886" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_PayFail" bpmnElement="Flow_H_PayFail">
+        <di:waypoint x="1372" y="1040" />
+        <di:waypoint x="1392" y="1040" />
+        <di:waypoint x="1392" y="1015" />
+        <di:waypoint x="1542" y="1015" />
+        <di:waypoint x="1542" y="995" />
+        <di:waypoint x="3008" y="995" />
+        <di:waypoint x="3008" y="925" />
+        <di:waypoint x="3033" y="925" />
+        <di:waypoint x="3033" y="905" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2255" y="973" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_AndConf" bpmnElement="Flow_H_AndConf">
+        <di:waypoint x="1847" y="745" />
+        <di:waypoint x="1847" y="1040" />
+        <di:waypoint x="1972" y="1040" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_DelFail" bpmnElement="Flow_H_DelFail">
+        <di:waypoint x="2683" y="745" />
+        <di:waypoint x="2683" y="880" />
+        <di:waypoint x="2808" y="880" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2688" y="806" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H4" bpmnElement="Flow_H4">
+        <di:waypoint x="704" y="720" />
+        <di:waypoint x="836" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H5" bpmnElement="Flow_H5">
+        <di:waypoint x="1086" y="1040" />
+        <di:waypoint x="1186" y="1040" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H6" bpmnElement="Flow_H6">
+        <di:waypoint x="1222" y="1040" />
+        <di:waypoint x="1322" y="1040" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_ConfDone" bpmnElement="Flow_H_ConfDone">
+        <di:waypoint x="2072" y="1040" />
+        <di:waypoint x="2197" y="1040" />
+        <di:waypoint x="2197" y="745" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H11" bpmnElement="Flow_H11">
+        <di:waypoint x="2908" y="880" />
+        <di:waypoint x="3008" y="880" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="BPMNEdge_Flow_H_ToCancel" bpmnElement="Flow_H_ToCancel">
+        <di:waypoint x="3058" y="880" />
+        <di:waypoint x="3158" y="880" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
